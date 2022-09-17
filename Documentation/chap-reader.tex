@@ -1,0 +1,24 @@
+\chapter{Reader}
+
+A reader is required in order to read \commonlisp{} code to turn the
+core functionality written in \clanguage{} into a fully conforming
+\commonlisp{} implementation.  The reader used to read most code is
+Eclector, but we need a simple reader written in \clanguage{} in order
+to read the source code of Eclector.  However, this simple reader does
+not need to have all the features of a complete \commonlisp{} reader,
+so it differs from a conforming reader as follows:
+
+\begin{itemize}
+\item The input base for reading numbers is set to 10 and can not be
+  changed.
+\item Only the reader macros needed to read Eclector are implemented,
+  and they are not implemented as a dispatch through a readtable.
+  Instead their functions are hard coded into the simple reader.
+\item The accessor \texttt{readtable-case} is not implemented, and the
+  simple reader behaves as if the readtable case were
+  \texttt{:upcase}.
+\item The simple reader assumes that the input is well formed, so it
+  makes no attempt to check incorrect input, and it has no provisions
+  for signaling errors. 
+\end{itemize}
+

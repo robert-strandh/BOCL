@@ -1,0 +1,222 @@
+\chapter{Evaluator implementation}
+\label{chap-evaluator-implementation}
+
+\section{General strategy}
+\label{sec-evaluator-implementation-general-strategy}
+
+The evaluator is implemented as an interpreter written in
+\clanguage{}.  However, we do not interpret the \commonlisp{} code
+directly.  Instead, it is first \emph{minimally compiled} using a
+pre-compiler, resulting in a program using a notation that is based on
+S-expressions, but that is not conforming \commonlisp{}.  There are
+several reasons for the use of this technique:
+
+\begin{itemize}
+\item Minimal compilation is a term used in the \commonlisp{}
+  standard, and its minimal requirements include expansion of all
+  macros and compiler macros.  Minimal compilation is a requirement of
+  the file compiler, so this notation can be used as a FASL notation
+  as well as an intermediate notation for the interpreter.
+\item We reduce the number of different kinds of forms that the
+  interpreter must handle, thereby allowing a simpler interpreter,
+  which is important since it is written in \clanguage{}.
+\item The pre-compiler can be written in \commonlisp{}, or, rather, in
+  the pre-compiled notation that is acceptable to the interpreter.
+  Since the code of the pre-compiler must be interpreted, this process
+  is likely sluggish, but it makes the resulting code faster to
+  interpret.  We think this technique will be a good compromise
+  between the performance and the maintainability of \sysname{}.
+  A first version of the pre-compiler could be written in full
+  \commonlisp{} and then be pre-compiled by itself to obtain the
+  version intended to be maintained, and included in the distribution
+  of \sysname{}.
+\end{itemize}
+
+In the remainder of this chapter, we discuss the details of the
+pre-compiled notation and the details of the interpreter for this
+notation.
+
+\section{Pre-compiled S-expression notation}
+
+\subsection{Expansion of all macros and symbol macros}
+
+As required by the \commonlisp{} standard, minimally compiled code
+must have all its macros and symbol macros expanded.  \sysname{} takes
+advantage of the freedom given by the \commonlisp{} standard to never
+expand compiler macros, though application code must obviously be
+allowed to define compiler macros with compiler macro functions being
+correctly generated.
+
+\subsection{Elimination of implicit \texttt{progn}}
+
+All implicit \texttt{progn}s are replaced by an explicit
+\texttt{progn}, so that the interpreter has only one special operator
+where the sequence of sub-forms needs to be iterated over.
+
+\subsection{Passing arguments and returning values}
+
+All functions are called with a list of arguments, and all functions
+return a list of return values.  Using lists greatly simplifies the
+code and makes it much easier to implement standard \commonlisp{}
+functions in \clanguage{}
+
+\subsection{Pre-processing ordinary lambda lists}
+\label{pre-processing-ordinary-lambda-lists}
+
+Ordinary lambda lists have a fairly complex syntax.  In particular,
+there might be initialization forms for \texttt{\&optional} and
+\texttt{\&key} parameters, and they allow for variables to be
+introduced using \texttt{\&aux}.  We turn all such lambda lists into
+one with a single parameter that holds the list of all arguments upon
+function entry.  Explicit code in the beginning of the function body
+parses the list of arguments and binds the variables used in the
+original function body.
+
+\subsection{Elimination of bindings of special variables}
+
+Special variables can be bound in several special forms and in lambda
+lists.  We eliminate such bindings in favor of the use of
+\texttt{progv} which turns the special variables into symbols, so that
+they are treated as any other data.  When a special form such as
+\texttt{let} or \texttt{let*} binds a special variable, the form may
+need to be split into several sub-forms, with a \texttt{progv} in
+between.
+
+\subsection{Elimination of all declarations}
+
+The \commonlisp{} standard gives considerable freedom to a conforming
+implementation to ignore most declarations.  The exceptions are
+\texttt{declaration}, \texttt{notinline}, \texttt{safety}, and
+\texttt{special}.  The pre-compiler eliminates the others directly.
+The remaining ones are handled as follows:
+
+\begin{itemize}
+\item The \texttt{declaration} declaration is processed by the
+  pre-compiler together with the associated declarations using it.
+  In the output, they are then eliminated.
+\item The \texttt{notinline} declaration is eliminated by the
+  pre-compiler, which is possible since \sysname{} does not inline
+  application functions at all.  The standard allows for an
+  implementation that does not inline and that does not use compiler
+  macros to ignore this declaration.
+\item The \texttt{safety} is eliminated by the pre-compiler.  The
+  standard allows us to do this if all code is processed as if the
+  highest safety value were used.
+\item The \texttt{special} declaration can be eliminated by the
+  pre-compiler since all bindings of special variables have been
+  replaced by the use of the \texttt{progv} special form. 
+\end{itemize}
+
+\subsection{Elimination of \texttt{locally}}
+
+Since the sole purpose of \texttt{locally} is to introduce local
+declarations, and declarations have already been eliminated, there is
+no need for \texttt{locally}, so \texttt{locally} is eliminated as well.
+
+\subsection{Representing the dynamic environment}
+
+The dynamic environment is represented as an ordinary heap-allocated
+\commonlisp{} list of \emph{entries}.  The following types of entries
+exist:
+
+\begin{itemize}
+\item \texttt{block/return}
+\item \texttt{tagbody/go}
+\item \texttt{unwind-protect}
+\item \texttt{catch}
+\item special-variable binding.
+\item restart.
+\end{itemize}
+
+The interpreter handles many operators that manipulate the dynamic
+environment as function calls, for example \texttt{block},
+\texttt{return-from}, \texttt{tagbody} , \texttt{go} , \texttt{progv},
+\texttt{catch}, \texttt{throw}.  This organization greatly simplifies
+the interpreter.
+
+\subsection{\texttt{block} and \texttt{return-from}}
+
+The block name of each \texttt{block} and \texttt{return-from} is
+replaced by an uninterned symbol that is unique to the compilation
+unit.  The interpreter uses this symbol as the name of a lexical
+variable that is introduced into the lexical environment by the
+interpreter when it interprets the \texttt{block} special form.  The
+value of the lexical variable is a unique object created by the
+equivalent of the execution of the form \texttt{(list nil)}.  This
+value is also used to create a \texttt{block/return-from} entry in the
+dynamic environment.  The interpreter interprets the body%
+\footnote{The body consists of a single form since implicit
+  \texttt{progn}s have been eliminated.}
+of the \texttt{block} special form using the new lexical and dynamic
+environment.
+
+When
+\texttt{return-from} is interpreted, the lexical environment is
+consulted for the value of this variable, and the dynamic environment
+is searched for a \texttt{block/return-from} entry with that value
+stored in it in order to perform a non-local control transfer.
+
+\subsection{\texttt{tagbody} and \texttt{go}}
+
+Perhaps \texttt{tagbody} and \texttt{go} are the special operators
+that undergo the most significant transformation.  A \texttt{tagbody}
+form is transformed into \texttt{(tagbody} \textit{symbol
+  form}\texttt{)} where \textit{symbol} is an uninterned symbol
+playing the same role as the uninterned symbol in \texttt{block} and
+\texttt{return-from}.  The \textit{form} is typically a \texttt{progn}
+where the body consists of all the \emph{statements} (i.e., excluding
+the tags) of the original \texttt{tagbody} form.
+
+A \texttt{go} form is transformed into \texttt{(go} \textit{symbol
+  form}\texttt{)}, where \textit{symbol} is identical to the one in
+the corresponding transformed \texttt{tagbody} form.  The
+\textit{form} is again often a \texttt{progn} form consisting of all
+the statements in the original \texttt{tagbody} form that follow the
+\texttt{go} tag of the original \texttt{go} form.
+
+For example, consider an original form such as \texttt{(tagbody}
+\textit{statement1 tag1 statement2 statement3 tag2
+  statement4}\texttt{)}.  This form is transformed into
+\texttt{(tagbody} \textit{symbol} \texttt{(progn} \textit{statement1
+  statement2 statement3 statement4}\texttt{))}.  An original form
+\texttt{(go} \textit{tag1}\texttt{)} is transformed into
+\texttt{(go} \textit{symbol} \texttt{(progn} \textit{statement2
+  statement3 statement4}\texttt{))}, and 
+an original form
+\texttt{(go} \textit{tag2}\texttt{)} is transformed into
+\texttt{(go} \textit{symbol} \textit{statement4}\texttt{)}.
+
+When the interpreter encounters a transformed \texttt{tagbody} form,
+it creates a variable in lexical environment with the name
+\textit{symbol} and with a value being the result of evaluating
+\texttt{(list nil)} just as with \texttt{block} and
+\texttt{return-from}.  The interpreter also creates a
+\texttt{tagbody/go} entry in the dynamic environment containing the
+unique value.  The body of the \texttt{tagbody} form is interpreted in
+the modified lexical and dynamic environments.  When the interpreter
+encounters a transformed \texttt{go} form, it searches the dynamic
+environment for a \texttt{tagbody/go} entry with the same value as
+that of the lexical variable.  It then performs a non-local control
+transfer to the place where the body of the \texttt{tagbody} form is
+interpreted, sending the form there to be interpreted.
+
+\subsection{\texttt{catch} and \texttt{throw}}
+
+The only change made to these special forms is that the implicit
+\texttt{progn} of \texttt{catch} has been replaced by an explicit
+\texttt{progn} form in case there is more than one form in the body of
+the \texttt{catch} form.
+
+\subsection{\texttt{flet} and \texttt{labels}}
+
+The implicit \texttt{progn} of the body of an \texttt{flet} or a
+\texttt{labels} form is eliminated as usual.  The lambda lists of the
+functions being defined are simplified as indicated in
+\refSec{pre-processing-ordinary-lambda-lists}.  And the bodies of the
+functions being defined are pre-processed as usual.
+
+\subsection{\texttt{eval-when}}
+
+All \texttt{eval-when} forms are eliminated in the minimally compiled
+code.  Such forms are processed according to which entry point into
+the compiler was used, as explained in \refChap{chap-compiler}.

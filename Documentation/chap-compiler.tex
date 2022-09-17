@@ -1,0 +1,25 @@
+\chapter{Compiler}
+\label{chap-compiler}
+
+The compiler mainly consists of the pre-compiler mentioned in
+\refSec{sec-evaluator-implementation-general-strategy}.  However,
+there are minor distinctions between the use of the compiler in
+\texttt{eval}, \texttt{compile}, and \texttt{compile-file}.
+
+\section{\texttt{compile-file}}
+
+The result of the pre-compilation is written to a file as expected.
+
+When \texttt{compile-file} encounters an \texttt{eval-when} form as a
+top-level form, it behaves as follows:
+
+\begin{itemize}
+\item If the situation \texttt{:compile-toplevel} or \texttt{compile}
+  was given, then \texttt{compile-file} calls \texttt{eval}, passing
+  it the body form of the \texttt{eval-when} form.
+\item If the situation \texttt{:load-toplevel} or \texttt{load} was
+  given, then \texttt{compile-file} transforms the body form as usual,
+  inserting the result at the top-level of the transformed file
+  contents so that it will be interpreted when the file is loaded.
+\end{itemize}
+
