@@ -4,6 +4,7 @@
 #include "object.h"
 
 extern void ensure_package_initialized(void);
+extern void ensure_package_initialized_2(void);
 
 extern object package_slot_name(object package);
 extern void set_package_slot_name(object package, object name);

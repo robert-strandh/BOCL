@@ -21,6 +21,7 @@ int main(void)
   ensure_stream_initialized();
   ensure_function_initialized();
   ensure_control_initialized();
+  ensure_package_initialized_2();
   object x = c_function_integer_to_integer(234);
   object y = c_function_integer_to_integer(345);
   object z = c_function_binary_add_integer(x, y);
