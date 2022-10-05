@@ -162,3 +162,22 @@ c_function_string_push_extend(object character, object string, object extension)
   }
   return extension;
 }
+
+object
+c_function_string_equal_sign(object string1, object string2)
+{
+  assert(c_function_stringp(string1) == symbol_t);
+  assert(c_function_stringp(string2) == symbol_t);
+  string_rack r1 = ((string_rack) rack_of(string1));
+  string_rack r2 = ((string_rack) rack_of(string2));
+  object length1 = c_function_car(r1 -> dimensions);
+  object length2 = c_function_car(r2 -> dimensions);
+  signed long int c_length1 = c_function_integer_to_c_integer(length1);
+  signed long int c_length2 = c_function_integer_to_c_integer(length2);
+  if(c_length1 != c_length2)
+    return symbol_nil;
+  for(int i = 0; i < c_length1; i++)
+    if(r1 -> characters[i] != r2 -> characters[i])
+      return symbol_nil;
+  return symbol_t;
+}
