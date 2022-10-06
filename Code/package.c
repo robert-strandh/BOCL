@@ -1077,3 +1077,19 @@ ensure_package_initialized_2(void)
   r -> external_symbols = c_function_cons(symbol_greater_than_or_equal_sign, r -> external_symbols);
   package_initialized_2_p = 1;
 }
+
+object
+c_function_find_symbol(object string, object package)
+{
+  package_rack r = (package_rack) rack_of(package);
+  for(object rest = r -> external_symbols;
+      rest != symbol_nil;
+      rest = c_function_cdr(rest))
+    {
+      object symbol = c_function_car(rest);
+      object name = c_function_symbol_name(symbol);
+      if(c_function_string_equal_sign(name, string) == symbol_t)
+        return symbol;
+    }
+  return 0;
+}
