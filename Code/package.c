@@ -13,6 +13,8 @@ object package_keyword;
 
 object package_common_lisp_user;
 
+object current_package;
+
 static int package_initialized_p = 0;
 static int package_initialized_2_p = 0;
 
@@ -76,6 +78,7 @@ ensure_package_initialized(void)
   make_common_lisp_package();
   make_keyword_package();
   make_common_lisp_user_package();
+  current_package = package_common_lisp;
   package_initialized_p = 1;
 }
 
@@ -1079,12 +1082,9 @@ ensure_package_initialized_2(void)
 }
 
 object
-c_function_find_symbol(object string, object package)
+find_symbol_in_list(object string, object list)
 {
-  package_rack r = (package_rack) rack_of(package);
-  for(object rest = r -> external_symbols;
-      rest != symbol_nil;
-      rest = c_function_cdr(rest))
+  for(object rest = list; rest != symbol_nil; rest = c_function_cdr(rest))
     {
       object symbol = c_function_car(rest);
       object name = c_function_symbol_name(symbol);
@@ -1093,3 +1093,43 @@ c_function_find_symbol(object string, object package)
     }
   return 0;
 }
+
+object
+c_function_find_symbol(object string, object package)
+{
+  package_rack r = (package_rack) rack_of(package);
+  object symbol;
+  symbol = find_symbol_in_list(string, r -> external_symbols);
+  if(symbol != 0)
+    return symbol;
+  symbol = find_symbol_in_list(string, r -> internal_symbols);
+  if(symbol != 0)
+    return symbol;
+  for(object restp = r -> used_packages;
+      restp != symbol_nil;
+      restp = c_function_cdr(restp))
+    {
+      object p = c_function_car(restp);
+      package_rack r = (package_rack) rack_of(p);
+      symbol = find_symbol_in_list(string, r -> external_symbols);
+      if(symbol != 0)
+        return symbol;
+    }
+  return 0;
+}
+
+object
+c_function_intern(object string, object package)
+{
+  object symbol = c_function_find_symbol(string, package);
+  if(symbol != 0)
+    return symbol;
+  else
+    {
+      package_rack r = (package_rack) rack_of(package);
+      symbol = c_function_make_symbol(string, package);
+      r -> internal_symbols = c_function_cons(symbol, r -> internal_symbols);
+      return symbol;
+    }
+}
+

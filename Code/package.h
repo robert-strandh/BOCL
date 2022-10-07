@@ -12,6 +12,7 @@ extern object package_slot_nicknames(object package);
 extern void set_package_slot_nicknames(object package, object name);
 extern object c_function_packagep(object maybe_package);
 extern object c_function_find_symbol(object string, object package);
+extern object c_function_intern(object string, object package);
 
 extern void package_add_external_symbol(object package, object symbol);
 extern void intern(object string, object package);
@@ -21,5 +22,7 @@ extern object class_package;
 extern object package_common_lisp;
 
 extern object package_keyword;
+
+extern object current_package;
 
 #endif
