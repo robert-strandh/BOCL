@@ -1070,6 +1070,16 @@ make_symbol()
 }
 
 object
+c_function_make_symbol(object name, object package)
+{
+  object result = make_symbol();
+  symbol_rack r = (symbol_rack) rack_of(result);
+  r -> name = name;
+  r -> package = package;
+  return result;
+}
+
+object
 c_function_symbol_to_symbol(char *s, object package)
 {
   object result = make_symbol();

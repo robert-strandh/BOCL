@@ -7,6 +7,7 @@ extern void ensure_symbol_initialized(void);
 
 extern object c_function_symbol_to_symbol(char *s, object package);
 
+extern object c_function_make_symbol(object name, object package);
 extern object c_function_symbol_name(object symbol);
 extern object c_function_symbol_package(object symbol);
 extern object symbol_slot_function(object symbol);
