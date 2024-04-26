@@ -12,10 +12,10 @@ next_interesting_character(FILE *stream)
 {
   int c;
   for(c = getc(stream);
-      c != 9 && c != 10 && c != ' ';
+      c == 9 || c == 10 || c == ' ';
       c = getc(stream))
-    assert(c != -1);
-    return c;
+    ;
+  return c;
 }
 
 object
@@ -55,6 +55,17 @@ parse_positive_integer(char *s)
   return result;
 }
 
+char constituent[128] =
+  {0, 0, 0, 0 ,0, 0, 0, 0 ,0, 0, 0, 0 ,0, 0, 0, 0,
+   0, 0, 0, 0 ,0, 0, 0, 0 ,0, 0, 0, 0 ,0, 0, 0, 0,
+   0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1,
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+   0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0
+  };
+
 object
 substandard_reader(FILE *stream)
 {
@@ -75,9 +86,10 @@ substandard_reader(FILE *stream)
       buffer[0] = c;
       int next = 1;
       for(c = getc(stream);
-          c != 9 && c != 10 && c != ' ';
+          c != -1 && c < 128 && constituent[c];
           c = getc(stream))
         buffer[next++] = c;
+      ungetc(c, stream);
       buffer[next] = 0;
       if(all_digits_p(buffer + 1) && (buffer[0] == '-' || is_digit(buffer[0])))
         {
