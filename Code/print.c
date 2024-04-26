@@ -63,6 +63,20 @@ c_function_print_cons(object cons, object stream)
     }
 }
 
+void
+c_function_print_integer(__attribute__((unused)) object integer, object stream)
+{
+  object zero = c_function_char_to_character('0');
+  c_function_stream_write_char(stream, zero);
+}
+
+void
+c_function_print_unknown(__attribute__((unused)) object unknoen, object stream)
+{
+  object questionmark = c_function_char_to_character('?');
+  c_function_stream_write_char(stream, questionmark);
+}
+
 object
 c_function_print(object obj, object stream)
 {
@@ -70,7 +84,11 @@ c_function_print(object obj, object stream)
     c_function_print_symbol(obj, stream);
   else if(c_function_stringp(obj) == symbol_t)
     c_function_print_string(obj, stream);
-  else if (c_function_consp(obj) == symbol_t)
+  else if(c_function_consp(obj) == symbol_t)
     c_function_print_cons(obj, stream);
+  else if(c_function_integerp(obj) == symbol_t)
+    c_function_print_integer(obj, stream);
+  else
+    c_function_print_unknown(obj, stream);
   return obj;
 }
